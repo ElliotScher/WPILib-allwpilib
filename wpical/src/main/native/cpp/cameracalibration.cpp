@@ -11,8 +11,6 @@
 #include <vector>
 
 #include <mrcal_wrapper.h>
-#include <opencv2/objdetect/aruco_board.hpp>
-#include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 
 static bool filter(std::vector<cv::Point2f> charuco_corners,
@@ -43,13 +41,12 @@ static bool filter(std::vector<cv::Point2f> charuco_corners,
   return true;
 }
 
-int cameracalibration::calibrate(const std::string& input_video,
+int cameracalibration::calibrate(const cv::aruco::Dictionary& aruco_dict,
+                                 const std::string& input_video,
                                  CameraModel& camera_model, float square_width,
                                  float marker_width, int board_width,
                                  int board_height, bool show_debug_window) {
   // ChArUco Board
-  cv::aruco::Dictionary aruco_dict =
-      cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
   cv::Ptr<cv::aruco::CharucoBoard> charuco_board = new cv::aruco::CharucoBoard(
       cv::Size(board_width, board_height), square_width * 0.0254,
       marker_width * 0.0254, aruco_dict);
@@ -152,15 +149,14 @@ int cameracalibration::calibrate(const std::string& input_video,
   return 0;
 }
 
-int cameracalibration::calibrate(const std::string& input_video,
+int cameracalibration::calibrate(const cv::aruco::Dictionary& aruco_dict,
+                                 const std::string& input_video,
                                  CameraModel& camera_model, float square_width,
                                  float marker_width, int board_width,
                                  int board_height, double imagerWidthPixels,
                                  double imagerHeightPixels,
                                  bool show_debug_window) {
   // ChArUco Board
-  cv::aruco::Dictionary aruco_dict =
-      cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
   cv::Ptr<cv::aruco::CharucoBoard> charuco_board = new cv::aruco::CharucoBoard(
       cv::Size(board_width, board_height), square_width * 0.0254,
       marker_width * 0.0254, aruco_dict);
@@ -287,113 +283,6 @@ int cameracalibration::calibrate(const std::string& input_video,
                                                  0.0,
                                                  0.0};
 
-  camera_model.intrinsic_matrix =
-      Eigen::Matrix<double, 3, 3>(camera_matrix.data());
-  camera_model.distortion_coefficients =
-      Eigen::Matrix<double, 8, 1>(distortion_coefficients.data());
-  camera_model.avg_reprojection_error = stats.rms_error;
-
-  return 0;
-}
-
-int cameracalibration::calibrate(const std::string& input_video,
-                                 CameraModel& camera_model, float square_width,
-                                 int board_width, int board_height,
-                                 double imagerWidthPixels,
-                                 double imagerHeightPixels,
-                                 bool show_debug_window) {
-  // Video capture
-  cv::VideoCapture video_capture(input_video);
-
-  // Detection output
-  std::vector<mrcal_point3_t> observation_boards;
-  std::vector<mrcal_pose_t> frames_rt_toref;
-
-  cv::Size boardSize(board_width - 1, board_height - 1);
-  cv::Size imagerSize(imagerWidthPixels, imagerHeightPixels);
-
-  while (video_capture.grab()) {
-    cv::Mat frame;
-    video_capture.retrieve(frame);
-
-    if (frame.empty()) {
-      break;
-    }
-
-    // Detect
-    cv::Mat frame_gray;
-    cv::cvtColor(frame, frame_gray, cv::COLOR_BGR2GRAY);
-
-    std::vector<cv::Point2f> corners;
-
-    bool found = cv::findChessboardCorners(
-        frame_gray, boardSize, corners,
-        cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE);
-
-    if (found) {
-      std::vector<mrcal_point3_t> current_points;
-      for (int i = 0; i < corners.size(); i++) {
-        current_points.push_back(
-            mrcal_point3_t{{corners.at(i).x, corners.at(i).y, 1.0f}});
-      }
-      frames_rt_toref.push_back(getSeedPose(current_points.data(), boardSize,
-                                            imagerSize, square_width * 0.0254,
-                                            1000));
-      observation_boards.insert(observation_boards.end(),
-                                current_points.begin(), current_points.end());
-    }
-    if (show_debug_window) {
-      cv::drawChessboardCorners(frame, boardSize, corners, found);
-      cv::imshow("Checkerboard Detection", frame);
-      if (cv::waitKey(30) == 'q') {
-        break;
-      }
-    }
-  }
-
-  video_capture.release();
-  if (show_debug_window) {
-    cv::destroyAllWindows();
-  }
-
-  if (observation_boards.empty()) {
-    std::cout << "calibration failed" << std::endl;
-    return 1;
-  } else {
-    std::cout << "points detected" << std::endl;
-  }
-
-  std::unique_ptr<mrcal_result> cal_result =
-      mrcal_main(observation_boards, frames_rt_toref, boardSize,
-                 square_width * 0.0254, imagerSize, 1000);
-
-  auto& stats = *cal_result;
-
-  // Camera matrix and distortion coefficients
-  std::vector<double> camera_matrix = {
-      // fx 0 cx
-      stats.intrinsics[0], 0, stats.intrinsics[2],
-      // 0 fy cy
-      0, stats.intrinsics[1], stats.intrinsics[3],
-      // 0 0 1
-      0, 0, 1};
-
-  std::vector<double> distortion_coefficients = {stats.intrinsics[4],
-                                                 stats.intrinsics[5],
-                                                 stats.intrinsics[6],
-                                                 stats.intrinsics[7],
-                                                 stats.intrinsics[8],
-                                                 stats.intrinsics[9],
-                                                 stats.intrinsics[10],
-                                                 stats.intrinsics[11],
-                                                 0.0,
-                                                 0.0,
-                                                 0.0,
-                                                 0.0,
-                                                 0.0,
-                                                 0.0};
-
-  // Save calibration output
   camera_model.intrinsic_matrix =
       Eigen::Matrix<double, 3, 3>(camera_matrix.data());
   camera_model.distortion_coefficients =

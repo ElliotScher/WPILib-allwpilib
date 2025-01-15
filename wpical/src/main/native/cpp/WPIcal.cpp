@@ -23,6 +23,9 @@
 #include <wpi/json.h>
 #include <wpigui.h>
 
+#include <opencv2/objdetect/aruco_board.hpp>
+#include <opencv2/opencv.hpp>
+
 namespace gui = wpi::gui;
 
 const char* GetWPILibVersion();
@@ -192,7 +195,8 @@ static void DisplayGui() {
   ImGui::EndMenuBar();
 
   static std::unique_ptr<pfd::open_file> camera_intrinsics_selector;
-  static std::unique_ptr<pfd::open_file> camera_calibration_input_video_selector;
+  static std::unique_ptr<pfd::open_file>
+      camera_calibration_input_video_selector;
   static std::unique_ptr<pfd::open_file> field_map_selector;
   static std::unique_ptr<pfd::open_file> output_calibration_json_selector;
   static std::unique_ptr<pfd::open_file> combination_calibrations_selector;
@@ -427,9 +431,11 @@ static void DisplayGui() {
 
   if (mrcal) {
     openFileButton("Select Camera Calibration Video",
-                   selected_camera_calibration_input_video, camera_calibration_input_video_selector,
-                   "Video Files", "*.mp4 *.mov *.m4v *.mkv *.avi");
-    processFileSelector(camera_calibration_input_video_selector, selected_camera_calibration_input_video);
+                   selected_camera_calibration_input_video,
+                   camera_calibration_input_video_selector, "Video Files",
+                   "*.mp4 *.mov *.m4v *.mkv *.avi");
+    processFileSelector(camera_calibration_input_video_selector,
+                        selected_camera_calibration_input_video);
 
     if (!selected_camera_calibration_input_video.empty()) {
       drawCheck();
@@ -449,20 +455,24 @@ static void DisplayGui() {
     ImGui::InputDouble("Image Height (pixels)", &imagerHeight);
 
     ImGui::Separator();
-    if (ImGui::Button("Calibrate") && !selected_camera_calibration_input_video.empty()) {
+    if (ImGui::Button("Calibrate") &&
+        !selected_camera_calibration_input_video.empty()) {
       std::cout << "calibration button pressed" << std::endl;
-      int ret = cameracalibration::calibrate(
-          selected_camera_calibration_input_video.c_str(), cameraModel, markerWidth,
-          boardWidth, boardHeight, imagerWidth, imagerHeight, showDebug);
+      cv::aruco::Dictionary dictionary =
+          cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
+      int ret = cameracalibration::calibrate(dictionary,
+          selected_camera_calibration_input_video.c_str(), cameraModel, squareWidth,
+          markerWidth, boardWidth, boardHeight, imagerWidth, imagerHeight,
+          showDebug);
       if (ret == 0) {
         size_t lastSeparatorPos =
             selected_camera_calibration_input_video.find_last_of("/\\");
         std::string output_file_path;
 
         if (lastSeparatorPos != std::string::npos) {
-          output_file_path =
-              selected_camera_calibration_input_video.substr(0, lastSeparatorPos)
-                  .append("/cameracalibration.json");
+          output_file_path = selected_camera_calibration_input_video
+                                 .substr(0, lastSeparatorPos)
+                                 .append("/cameracalibration.json");
         }
 
         selected_camera_intrinsics = output_file_path;
@@ -479,9 +489,11 @@ static void DisplayGui() {
     }
   } else {
     openFileButton("Select Camera Calibration Video",
-                   selected_camera_calibration_input_video, camera_calibration_input_video_selector,
-                   "Video Files", "*.mp4 *.mov *.m4v *.mkv *.avi");
-    processFileSelector(camera_calibration_input_video_selector, selected_camera_calibration_input_video);
+                   selected_camera_calibration_input_video,
+                   camera_calibration_input_video_selector, "Video Files",
+                   "*.mp4 *.mov *.m4v *.mkv *.avi");
+    processFileSelector(camera_calibration_input_video_selector,
+                        selected_camera_calibration_input_video);
 
     if (!selected_camera_calibration_input_video.empty()) {
       drawCheck();
@@ -497,20 +509,23 @@ static void DisplayGui() {
     ImGui::InputInt("Board Height (squares)", &boardHeight);
 
     ImGui::Separator();
-    if (ImGui::Button("Calibrate") && !selected_camera_calibration_input_video.empty()) {
+    if (ImGui::Button("Calibrate") &&
+        !selected_camera_calibration_input_video.empty()) {
       std::cout << "calibration button pressed" << std::endl;
-      int ret = cameracalibration::calibrate(
-          selected_camera_calibration_input_video.c_str(), cameraModel, squareWidth,
-          markerWidth, boardWidth, boardHeight, showDebug);
+      cv::aruco::Dictionary dictionary =
+          cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
+      int ret = cameracalibration::calibrate(dictionary,
+          selected_camera_calibration_input_video.c_str(), cameraModel,
+          squareWidth, markerWidth, boardWidth, boardHeight, showDebug);
       if (ret == 0) {
         size_t lastSeparatorPos =
             selected_camera_calibration_input_video.find_last_of("/\\");
         std::string output_file_path;
 
         if (lastSeparatorPos != std::string::npos) {
-          output_file_path =
-              selected_camera_calibration_input_video.substr(0, lastSeparatorPos)
-                  .append("/cameracalibration.json");
+          output_file_path = selected_camera_calibration_input_video
+                                 .substr(0, lastSeparatorPos)
+                                 .append("/cameracalibration.json");
         }
 
         selected_camera_intrinsics = output_file_path;
@@ -549,8 +564,6 @@ static void DisplayGui() {
   ImGui::Text("K4: %.4f", cameraModel.distortion_coefficients(5));
   ImGui::Text("K5: %.4f", cameraModel.distortion_coefficients(6));
   ImGui::Text("K6: %.4f", cameraModel.distortion_coefficients(7));
-
-
 
   ImGui::End();
 

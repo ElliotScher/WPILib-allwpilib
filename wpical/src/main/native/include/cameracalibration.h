@@ -10,6 +10,9 @@
 
 #include <Eigen/Core>
 #include <wpi/json.h>
+#include <opencv2/objdetect/aruco_board.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
 
 namespace cameracalibration {
 struct CameraModel {
@@ -18,17 +21,13 @@ struct CameraModel {
   double avg_reprojection_error;
 };
 
-int calibrate(const std::string& input_video, CameraModel& camera_model,
+int calibrate(const cv::aruco::Dictionary& dictionary, const std::string& input_video, CameraModel& camera_model,
               float square_width, float marker_width, int board_width,
               int board_height, bool show_debug_window);
-int calibrate(const std::string& input_video, CameraModel& camera_model,
+int calibrate(const cv::aruco::Dictionary& dictionary, const std::string& input_video, CameraModel& camera_model,
               float square_width, float marker_width, int board_width,
               int board_height, double imagerWidthPixels,
               double imagerHeightPixels, bool show_debug_window);
-int calibrate(const std::string& input_video, CameraModel& camera_model,
-              float square_width, int board_width, int board_height,
-              double imagerWidthPixels, double imagerHeightPixels,
-              bool show_debug_window);
 static void dumpJson(CameraModel& camera_model,
                      const std::string& output_file_path) {
   std::vector<double> camera_matrix(camera_model.intrinsic_matrix.data(),

@@ -10,6 +10,10 @@
 #include <gtest/gtest.h>
 #include <wpi/json.h>
 
+#include <opencv2/objdetect/aruco_board.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/videoio.hpp>
+
 const std::string projectRootPath = PROJECT_ROOT_PATH;
 const std::string calSavePath =
     projectRootPath.substr(0,
@@ -22,6 +26,9 @@ cameracalibration::CameraModel cameraModel = {
 
 wpi::json output_json;
 
+cv::aruco::Dictionary dictionary =
+    cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
+
 #ifdef __linux__
 const std::string fileSuffix = ".avi";
 const std::string videoLocation = "/altfieldvideo";
@@ -30,7 +37,7 @@ const std::string fileSuffix = ".mp4";
 const std::string videoLocation = "/fieldvideo";
 #endif
 TEST(Camera_CalibrationTest, OpenCV_Typical) {
-  int ret = cameracalibration::calibrate(
+  int ret = cameracalibration::calibrate(dictionary,
       projectRootPath + "/testcalibration" + fileSuffix, cameraModel, 0.709f,
       0.551f, 12, 8, false);
   cameracalibration::dumpJson(cameraModel,
@@ -39,23 +46,23 @@ TEST(Camera_CalibrationTest, OpenCV_Typical) {
 }
 
 TEST(Camera_CalibrationTest, OpenCV_Atypical) {
-  int ret = cameracalibration::calibrate(
+  int ret = cameracalibration::calibrate(dictionary,
       projectRootPath + videoLocation + "/long" + fileSuffix, cameraModel,
       0.709f, 0.551f, 12, 8, false);
   EXPECT_EQ(ret, 1);
 }
 
 TEST(Camera_CalibrationTest, MRcal_Typical) {
-  int ret = cameracalibration::calibrate(
-      projectRootPath + "/testcalibration" + fileSuffix, cameraModel, .709f, 12,
+  int ret = cameracalibration::calibrate(dictionary,
+      projectRootPath + "/testcalibration" + fileSuffix, cameraModel, .709f, 0.551f, 12,
       8, 1080, 1920, false);
   EXPECT_EQ(ret, 0);
 }
 
 TEST(Camera_CalibrationTest, MRcal_Atypical) {
-  int ret = cameracalibration::calibrate(
+  int ret = cameracalibration::calibrate(dictionary,
       projectRootPath + videoLocation + "/short" + fileSuffix, cameraModel,
-      0.709f, 12, 8, 1080, 1920, false);
+      0.709f, 0.551f, 12, 8, 1080, 1920, false);
   EXPECT_EQ(ret, 1);
 }
 

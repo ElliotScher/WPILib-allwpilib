@@ -176,9 +176,9 @@ static void DisplayGui() {
   ImGui::SetNextWindowPos(ImVec2(0, 0));
   int width, height;
   glfwGetWindowSize(gui::GetSystemWindow(), &width, &height);
-  glfwSetWindowSize(gui::GetSystemWindow(), 1000, 600);
+  glfwSetWindowSize(gui::GetSystemWindow(), 1000, 700);
   ImGui::SetNextWindowSize(
-      ImVec2(static_cast<float>(1000), static_cast<float>(600)));
+      ImVec2(static_cast<float>(1000), static_cast<float>(700)));
 
   ImGui::Begin("Entries", nullptr,
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_MenuBar |
@@ -244,6 +244,15 @@ static void DisplayGui() {
   static Fieldmap currentCalibrationMap;
   static Fieldmap currentReferenceMap;
   static Fieldmap currentCombinerMap;
+
+  static std::map<std::string, cv::aruco::Dictionary> aruco_dictionary_map;
+
+  aruco_dictionary_map.insert(std::make_pair("4X4", cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_1000)));
+  aruco_dictionary_map.insert(std::make_pair("5X5", cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000)));
+  aruco_dictionary_map.insert(std::make_pair("6X6", cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_1000)));
+  aruco_dictionary_map.insert(std::make_pair("7X7", cv::aruco::getPredefinedDictionary(cv::aruco::DICT_7X7_1000)));
+
+  static std::string selected_aruco_dictionary = "5X5";
 
   ImGui::SetNextWindowPos(ImVec2(5, 24));
   ImGui::Begin("Field Calibration", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
@@ -417,6 +426,19 @@ static void DisplayGui() {
   ImGui::Begin("Camera Calibration", nullptr,
                ImGuiWindowFlags_AlwaysAutoResize);
 
+  if (ImGui::BeginCombo("Aruco Dictionary", selected_aruco_dictionary.c_str())) {
+    for (auto& [key, value] : aruco_dictionary_map) {
+      bool is_selected = (selected_aruco_dictionary == key);
+      if (ImGui::Selectable(key.c_str(), is_selected)) {
+        selected_aruco_dictionary = key;
+      }
+      if (is_selected) {
+        ImGui::SetItemDefaultFocus();
+      }
+    }
+    ImGui::EndCombo();
+  }
+
   if (ImGui::Button("MRcal")) {
     mrcal = true;
   }
@@ -458,8 +480,8 @@ static void DisplayGui() {
     if (ImGui::Button("Calibrate") &&
         !selected_camera_calibration_input_video.empty()) {
       std::cout << "calibration button pressed" << std::endl;
-      cv::aruco::Dictionary dictionary =
-          cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
+      cv::aruco::Dictionary dictionary = aruco_dictionary_map.at(selected_aruco_dictionary);
+      std::cout << "dictionary selected" << std::endl;
       int ret = cameracalibration::calibrate(dictionary,
           selected_camera_calibration_input_video.c_str(), cameraModel, squareWidth,
           markerWidth, boardWidth, boardHeight, imagerWidth, imagerHeight,
@@ -473,7 +495,8 @@ static void DisplayGui() {
           output_file_path = selected_camera_calibration_input_video
                                  .substr(0, lastSeparatorPos)
                                  .append("/cameracalibration.json");
-        }
+        }      cv::aruco::Dictionary dictionary = aruco_dictionary_map.at(selected_aruco_dictionary);
+
 
         selected_camera_intrinsics = output_file_path;
 
@@ -512,8 +535,7 @@ static void DisplayGui() {
     if (ImGui::Button("Calibrate") &&
         !selected_camera_calibration_input_video.empty()) {
       std::cout << "calibration button pressed" << std::endl;
-      cv::aruco::Dictionary dictionary =
-          cv::aruco::getPredefinedDictionary(cv::aruco::DICT_5X5_1000);
+      cv::aruco::Dictionary dictionary = aruco_dictionary_map.at(selected_aruco_dictionary);
       int ret = cameracalibration::calibrate(dictionary,
           selected_camera_calibration_input_video.c_str(), cameraModel,
           squareWidth, markerWidth, boardWidth, boardHeight, showDebug);
@@ -567,7 +589,7 @@ static void DisplayGui() {
 
   ImGui::End();
 
-  ImGui::SetNextWindowPos(ImVec2(588, 24));
+  ImGui::SetNextWindowPos(ImVec2(602, 24));
   ImGui::Begin("Combine Calibrations", NULL, ImGuiWindowFlags_AlwaysAutoResize);
   openFileButton("Select Ideal Map", selected_field_map, field_map_selector,
                  "JSON", "*.json");
